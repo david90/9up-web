@@ -1,0 +1,202 @@
+
+
+<html>
+<head>
+    <meta charset="UTF-8"> 
+    <link rel="stylesheet" type="text/css" href="style.css">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+</head>
+<body style="text-align: center">
+
+
+<style>
+	
+@keyframes blink {
+    from, to { border-color: transparent }
+    50% { border-color: black }
+}
+
+.blinking {
+  border-left:1px solid black;
+  animation: 1s blink step-end infinite;
+}
+
+.content {
+  display: none;
+}
+
+.start {
+  /* style from Bootstrap btn */
+  display: inline-block;
+  padding: 6px 12px;
+  margin-bottom: 30px;
+  font-size: 14px;
+  font-weight: 400;
+  line-height: 1.42857143;
+  text-align: center;
+  white-space: nowrap;
+  vertical-align: middle;
+  -ms-touch-action: manipulation;
+  touch-action: manipulation;
+  cursor: pointer;
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  user-select: none;
+  background-image: none;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  color: #fff;
+  background-color: #337ab7;
+  border-color: #2e6da4;
+}
+
+.telegram-card {
+  background: #eee;
+  border-radius: 10px;
+  padding: 20px;
+  width: 200px;
+  color: #333;
+  margin: auto;
+  margin-top : 200px;
+}
+
+</style>
+
+<pre>
+
+
+<h1><img src="icons/lihkg_big_smile.gif">
+9up bot</h1>
+Machine Learning Demo - 用連登 data 訓練嘅廣東話 chatbot
+Note: This bot is not an official LIHKG Product.
+</pre>
+
+<div class="start">開始講嘢</div>
+<div class="content">你講：<span class="speech" id="speech"></span><span class="blinking"></span></div>
+<div class="reply">我答: <span class="answer" id="answer"></span><span class="blinking"></span><span id="loading"><img src="icons/lihkg_normal_bouncy.gif">(諗緊...)</span></div>
+
+
+
+<div class="telegram-card">
+  <b>Telegram 鳩噏Bot</b>
+  <pre>@lihkg_9up_bot</pre>
+</div>
+<script src="platform.js"></script>
+<script src="webspeech.js"></script>
+
+<script>
+
+    var text = document.querySelector(".speech");
+    var startBtn = document.querySelector(".start");
+    var loading = document.getElementById("loading");
+
+    var lastReply = "";
+    var answer = "";
+    var lastAnswer = "";
+
+    var recognition = new webkitSpeechRecognition();
+    // set params
+    recognition.continuous = false;
+    recognition.lang = 'zh-HK';
+    recognition.interimResults = true;
+
+    // start immediately
+    // recognition.start();
+
+    recognition.onresult = function(event) {
+      var result = event.results[event.results.length - 1];
+      text.innerHTML = result[result.length - 1 ].transcript;
+      answer = result[result.length - 1 ].transcript;
+
+
+      console.log(answer)
+    }
+
+    // speech error handling
+    recognition.onerror = function(event){
+      console.log('error', event);
+    }
+
+    recognition.onend = function() {
+      console.log("end");
+      // auto restart
+      if(answer != lastAnswer) {
+        lastAnswer = answer;
+        send();
+      }
+      lastReply = "";
+      recognition.start();
+    }
+
+    startBtn.addEventListener("click", function() {
+      recognition.start();
+      this.style.display = "none";
+      document.querySelector(".content").style.display = "block";
+    })
+
+
+    var speaker, listener;
+    window.onload = function() {
+        ws = webSpeechNoConflict();
+        try{
+            speaker = new ws.Speaker();
+            speaker.u.onend(function(){
+                console.log('just finished talking...');
+            });
+        }
+        catch(ex){
+            console.log(ex);
+            speaker = null;
+            document.getElementById("status").innerHTML = ex;
+        }
+        loading.style.display = 'none';
+    };
+
+
+    function talk() {
+        console.log("talk")
+        loading.style.display = 'none';
+        if(speaker){
+          console.log("talk2")
+
+            var script = lastReply.replace(/<img (\S)+>/g, '');
+            script = script.replace('撚','捻');
+
+
+            console.log(script);
+
+            speaker.speak("zh-HK", script);
+        }
+    }
+
+    function send() {
+        document.getElementById("answer").innerHTML = "";
+        loading.style.display = '';
+        let text = answer;
+
+        text = text.replace("*", "屌");
+
+        var xhttp = new XMLHttpRequest();
+        xhttp.onreadystatechange = function() {
+          if (this.readyState == 4 && this.status == 200) {
+            var newReply = JSON.parse(this.responseText).reply;
+            console.log(newReply);
+            var regex = /\@(\S+)\/(\S+)/g;
+            var newReply = newReply.replace(regex, '<img src="icons/lihkg_$1_$2.gif">');
+
+
+
+            document.getElementById("answer").innerHTML = ''+newReply;
+            lastReply = newReply;
+            talk();
+            
+          }
+        };
+        xhttp.open("POST", "https://cantoneseproxy.skygeario.com/hello/", true);
+        xhttp.send('{"message": "'+text+'"}');
+
+    }
+</script>
+</body>
+</html>
